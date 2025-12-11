@@ -89,22 +89,22 @@ sinks:
 
 ## 5) Tasks & Acceptance Criteria (checklists)
 - Phase A — Bootstrap
-  - [ ] Go module `github.com/devblac/watch-tower`; Cobra CLI; Makefile; basic main.
-  - [ ] CI: lint, test, build (linux/darwin/windows); minimal `.goreleaser.yaml`.
+  - [x] Go module `github.com/devblac/watch-tower`; Cobra CLI; Makefile; basic main.
+  - [x] CI: lint, test, build (linux/darwin/windows); minimal `.goreleaser.yaml`.
   - AC: `go build ./cmd/watch-tower` passes in CI; `watch-tower version` runs.
 - Phase B — Config (YAML)
-  - [ ] Load/validate via `yaml.v3`; env interpolation; schema checks.
+  - [x] Load/validate via `yaml.v3`; env interpolation; schema checks.
   - AC: `watch-tower validate -c config.yaml` prints pass; RPC endpoints reachable; secrets only via `${...}`.
 - Phase C — Storage (SQLite, minimal)
-  - [ ] Tables: cursors(source_id, height, hash, updated_at); alerts(id, rule_id, fingerprint, txhash, payload_json, created_at); sends(alert_id, sink_id, status, response_code, created_at); dedupe(key, expires_at).
-  - [ ] Reusable migrations; transactions for exactly-once.
+  - [x] Tables: cursors(source_id, height, hash, updated_at); alerts(id, rule_id, fingerprint, txhash, payload_json, created_at); sends(alert_id, sink_id, status, response_code, created_at); dedupe(key, expires_at).
+  - [x] Reusable migrations; transactions for exactly-once.
   - AC: Unit tests for cursor upsert, dedupe TTL, exactly-once semantics.
 - Phase D — EVM Source (MVP)
-  - [ ] ethclient HTTP; block pull with confirmations; parent hash verify; rewind N on mismatch.
-  - [ ] ABI loader; filter logs by address/topic; map to `NormalizedEvent`.
+  - [x] ethclient HTTP; block pull with confirmations; parent hash verify; rewind N on mismatch.
+  - [x] ABI loader; filter logs by address/topic; map to `NormalizedEvent`.
   - AC: USDC Transfer rule matches on testnet; event decoded; alert enqueued once.
 - Phase E — Algorand Source (MVP)
-  - [ ] algod + indexer; round cursor; basic app call & ASA transfer decode.
+  - [x] algod + indexer; round cursor; basic app call & ASA transfer decode.
   - AC: Sample app call triggers alert; rewind works across rounds.
 - Phase F — Engine & Predicates (tiny)
   - [ ] Predicates: `== != > < in contains`; numeric helpers (wei, microAlgos).
