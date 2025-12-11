@@ -1,11 +1,13 @@
 package algorand
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
 	"github.com/algorand/go-algorand-sdk/v2/client/v2/common"
 	"github.com/algorand/go-algorand-sdk/v2/client/v2/common/models"
+	"github.com/algorand/go-codec/codec"
 	sdk "github.com/algorand/go-algorand-sdk/v2/types"
 	"github.com/devblac/watch-tower/internal/config"
 	"github.com/devblac/watch-tower/internal/storage"
@@ -20,15 +22,6 @@ func (f fakeStatus) Do(ctx context.Context, headers ...*common.Header) (models.N
 	return f.resp, f.err
 }
 
-type fakeBlock struct {
-	block sdk.Block
-	err   error
-}
-
-func (f fakeBlock) Do(ctx context.Context, headers ...*common.Header) (sdk.Block, error) {
-	return f.block, f.err
-}
-
 type fakeAlgod struct {
 	status      fakeStatus
 	blocks      map[uint64]sdk.Block
@@ -39,7 +32,7 @@ func (f *fakeAlgod) Status() statusGetter {
 	return f.status
 }
 
-func (f *fakeAlgod) Block(round uint64) blockGetter {
+func (f *fakeAlgod) BlockRaw(round uint64) blockGetter {
 	return fakeBlock{block: f.blocks[round]}
 }
 
@@ -58,6 +51,24 @@ type fakeBlockHash struct {
 
 func (f fakeBlockHash) Do(ctx context.Context, headers ...*common.Header) (models.BlockHashResponse, error) {
 	return f.resp, f.err
+}
+
+type fakeBlock struct {
+	block sdk.Block
+	err   error
+}
+
+func (f fakeBlock) Do(ctx context.Context, headers ...*common.Header) ([]byte, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	var buf bytes.Buffer
+	h := &codec.MsgpackHandle{}
+	enc := codec.NewEncoder(&buf, h)
+	if err := enc.Encode(f.block); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func TestScannerProcessesRound(t *testing.T) {

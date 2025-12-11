@@ -11,6 +11,7 @@ import (
 	"github.com/algorand/go-algorand-sdk/v2/client/v2/common"
 	"github.com/algorand/go-algorand-sdk/v2/client/v2/common/models"
 	"github.com/algorand/go-algorand-sdk/v2/crypto"
+	"github.com/algorand/go-codec/codec"
 	sdk "github.com/algorand/go-algorand-sdk/v2/types"
 	"github.com/devblac/watch-tower/internal/config"
 	"github.com/devblac/watch-tower/internal/storage"
@@ -21,9 +22,9 @@ type statusGetter interface {
 	Do(ctx context.Context, headers ...*common.Header) (models.NodeStatus, error)
 }
 
-// blockGetter models the algod Block() fluent call.
+// blockGetter models the algod BlockRaw() fluent call.
 type blockGetter interface {
-	Do(ctx context.Context, headers ...*common.Header) (sdk.Block, error)
+	Do(ctx context.Context, headers ...*common.Header) ([]byte, error)
 }
 
 type blockHashGetter interface {
@@ -33,13 +34,29 @@ type blockHashGetter interface {
 // AlgodClient is the minimal subset of the algod client we need.
 type AlgodClient interface {
 	Status() statusGetter
-	Block(round uint64) blockGetter
+	BlockRaw(round uint64) blockGetter
 	GetBlockHash(round uint64) blockHashGetter
 }
 
 // NewAlgodClient constructs a real algod client.
-func NewAlgodClient(url string) (*algod.Client, error) {
-	return algod.MakeClient(url, "")
+func NewAlgodClient(url string) (AlgodClient, error) {
+	cli, err := algod.MakeClient(url, "")
+	if err != nil {
+		return nil, err
+	}
+	return &clientAdapter{c: cli}, nil
+}
+
+type clientAdapter struct {
+	c *algod.Client
+}
+
+func (a *clientAdapter) Status() statusGetter { return a.c.Status() }
+func (a *clientAdapter) BlockRaw(round uint64) blockGetter {
+	return a.c.BlockRaw(round)
+}
+func (a *clientAdapter) GetBlockHash(round uint64) blockHashGetter {
+	return a.c.GetBlockHash(round)
 }
 
 // Scanner processes Algorand rounds with confirmation safety.
@@ -108,9 +125,13 @@ func (s *Scanner) ProcessNext(ctx context.Context) ([]NormalizedEvent, error) {
 		return nil, nil
 	}
 
-	block, err := s.client.Block(target).Do(ctx)
+	raw, err := s.client.BlockRaw(target).Do(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("block %d: %w", target, err)
+	}
+	var block sdk.Block
+	if err := decodeBlock(raw, &block); err != nil {
+		return nil, fmt.Errorf("decode block: %w", err)
 	}
 
 	if hasCursor {
@@ -194,4 +215,10 @@ func resolveStartRound(start string, safe uint64) (uint64, error) {
 
 func digestToString(b []byte) string {
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
+}
+
+func decodeBlock(raw []byte, dest *sdk.Block) error {
+	h := &codec.MsgpackHandle{}
+	dec := codec.NewDecoderBytes(raw, h)
+	return dec.Decode(dest)
 }

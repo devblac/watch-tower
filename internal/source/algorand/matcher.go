@@ -55,9 +55,10 @@ func (m *RuleMatcher) MatchTxn(tx sdk.Transaction, apply sdk.ApplyData) (*Normal
 			args["inner_app_id"] = apply.ApplicationID
 		}
 		return &NormalizedEvent{
-			Name:  "app_call",
-			AppID: uint64(tx.ApplicationID),
-			Args:  args,
+			RuleID: m.rule.ID,
+			Name:   "app_call",
+			AppID:  uint64(tx.ApplicationID),
+			Args:   args,
 		}, true, nil
 
 	case "asset_transfer":
@@ -75,8 +76,9 @@ func (m *RuleMatcher) MatchTxn(tx sdk.Transaction, apply sdk.ApplyData) (*Normal
 			"closing_reward": apply.CloseRewards,
 		}
 		return &NormalizedEvent{
-			Name: "asset_transfer",
-			Args: args,
+			RuleID: m.rule.ID,
+			Name:   "asset_transfer",
+			Args:   args,
 		}, true, nil
 	default:
 		return nil, false, nil

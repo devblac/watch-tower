@@ -12,6 +12,7 @@ var ErrReorgDetected = errors.New("reorg detected")
 type NormalizedEvent struct {
 	Chain    string
 	SourceID string
+	RuleID   string
 	Height   uint64
 	Hash     string
 	TxHash   string

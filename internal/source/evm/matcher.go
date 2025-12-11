@@ -68,6 +68,7 @@ func (m *RuleMatcher) Match(log types.Log) (*NormalizedEvent, bool, error) {
 
 	idx := uint(log.Index)
 	return &NormalizedEvent{
+		RuleID:   m.rule.ID,
 		Contract: log.Address.Hex(),
 		Name:     eventName(m.rule.Match.Event),
 		TxHash:   log.TxHash.Hex(),
