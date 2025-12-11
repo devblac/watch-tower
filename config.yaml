@@ -1,0 +1,48 @@
+version: 1
+global:
+  db_path: "./watch_tower.db"
+  confirmations:
+    evm: 12
+    algorand: 10
+sources:
+  - id: evm_main
+    type: evm
+    rpc_url: ${EVM_RPC_URL}
+    start_block: "latest-5000"
+    abi_dirs: ["./abis"]
+  - id: algo_main
+    type: algorand
+    algod_url: ${ALGOD_URL}
+    indexer_url: ${ALGO_INDEXER_URL}
+    start_round: "latest-10000"
+rules:
+  - id: usdc_whale
+    source: evm_main
+    match:
+      type: log
+      contract: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+      event: "Transfer(address,address,uint256)"
+      where:
+        - "value >= 1_000_000 * 1e6"
+    sinks: ["slack_ops", "risk_webhook"]
+    dedupe:
+      key: "txhash:logIndex"
+      ttl: "24h"
+  - id: algo_app_watch
+    source: algo_main
+    match:
+      type: app_call
+      app_id: 12345678
+      where:
+        - "sender in env(ALLOWED_SENDERS)"
+    sinks: ["slack_ops"]
+sinks:
+  - id: slack_ops
+    type: slack
+    webhook_url: ${SLACK_WEBHOOK_URL}
+    template: "ALERT {{rule_id}} {{chain}} {{txhash}} {{pretty_json}}"
+  - id: risk_webhook
+    type: webhook
+    url: ${RISK_WEBHOOK}
+    method: POST
+
