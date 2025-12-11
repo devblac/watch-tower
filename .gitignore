@@ -1,0 +1,10 @@
+# Binaries and build artifacts
+bin/
+dist/
+*.exe
+
+# Environment / local data
+.env
+watch_tower.db
+*.log
+
