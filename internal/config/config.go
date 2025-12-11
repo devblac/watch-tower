@@ -230,6 +230,8 @@ func (r *Rule) Validate(sourceIDs map[string]struct{}, sinkIDs map[string]*Sink)
 		if r.Match.AppID == 0 {
 			return errors.New("match.app_id is required for app_call match")
 		}
+	case "asset_transfer":
+		// No additional required fields for asset transfers.
 	default:
 		return fmt.Errorf("unsupported match.type: %s", r.Match.Type)
 	}
