@@ -13,9 +13,10 @@ type Predicate func(args map[string]any) (bool, error)
 // CompilePredicates parses simple expressions into executable predicates.
 // Supported operators: ==, !=, >, <, in, contains.
 // Examples:
-//   "value > 10"
-//   "sender in a,b,c"
-//   "memo contains alert"
+//
+//	"value > 10"
+//	"sender in a,b,c"
+//	"memo contains alert"
 func CompilePredicates(exprs []string) ([]Predicate, error) {
 	var preds []Predicate
 	for _, raw := range exprs {

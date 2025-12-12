@@ -10,6 +10,7 @@ import (
 	"github.com/devblac/watch-tower/internal/source/algorand"
 	"github.com/devblac/watch-tower/internal/source/evm"
 	"github.com/devblac/watch-tower/internal/storage"
+	"github.com/devblac/watch-tower/internal/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +32,7 @@ var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run watch-tower pipelines",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		log := logging.New()
 		ctx := cmd.Context()
 
 		cfg, err := config.Load(cfgPath)
@@ -115,6 +117,7 @@ var runCmd = &cobra.Command{
 			if err := runner.RunOnce(ctx); err != nil {
 				return err
 			}
+			log.Info("tick complete", "dry_run", flagDryRun)
 			if flagOnce {
 				break
 			}

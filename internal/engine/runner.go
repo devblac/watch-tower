@@ -161,6 +161,10 @@ func (r *Runner) handleEvents(ctx context.Context, events []Event) error {
 		if err != nil || !pass {
 			continue
 		}
+		if r.dryRun {
+			// No side effects in dry-run: skip dedupe and sends.
+			continue
+		}
 		if exec.rule.Dedupe != nil {
 			key := buildDedupeKey(exec.rule.Dedupe.Key, ev)
 			now := r.nowFunc()
@@ -178,9 +182,6 @@ func (r *Runner) handleEvents(ctx context.Context, events []Event) error {
 			if err := r.store.MarkDedupe(ctx, key, exp); err != nil {
 				return err
 			}
-		}
-		if r.dryRun {
-			continue
 		}
 		for _, sinkID := range exec.rule.Sinks {
 			s := r.sinks[sinkID]

@@ -115,8 +115,8 @@ sinks:
   - [x] Templates via `text/template`; helpers `pretty_json`, `short_addr`.
   - AC: Duplicate events do not resend (dedupe key honored); sink errors retried with backoff.
 - Phase H — Replay & Dry-Run
-  - [ ] `--from/--to` historical scan; progress output; backpressure.
-  - [ ] `--dry-run` writes alerts only; no network sends.
+  - [x] `--from/--to` historical scan; progress output; backpressure.
+  - [x] `--dry-run` writes alerts only; no network sends.
   - AC: 5k-block replay yields expected count; zero sink calls in dry-run; deterministic reruns.
 - Phase I — Ops (only needed)
   - [ ] `/healthz` HTTP (db, RPCs); optional `/metrics` Prometheus counters.
