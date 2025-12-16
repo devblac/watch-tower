@@ -51,12 +51,18 @@ type Dedupe struct {
 	TTL string `yaml:"ttl"`
 }
 
+type RateLimit struct {
+	Capacity float64 `yaml:"capacity"` // max tokens
+	Rate     float64 `yaml:"rate"`     // tokens per second
+}
+
 type Rule struct {
-	ID     string    `yaml:"id"`
-	Source string    `yaml:"source"`
-	Match  MatchSpec `yaml:"match"`
-	Sinks  []string  `yaml:"sinks"`
-	Dedupe *Dedupe   `yaml:"dedupe,omitempty"`
+	ID        string     `yaml:"id"`
+	Source    string     `yaml:"source"`
+	Match     MatchSpec  `yaml:"match"`
+	Sinks     []string   `yaml:"sinks"`
+	Dedupe    *Dedupe    `yaml:"dedupe,omitempty"`
+	RateLimit *RateLimit `yaml:"rate_limit,omitempty"`
 }
 
 type Sink struct {

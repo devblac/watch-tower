@@ -107,8 +107,8 @@ sinks:
   - [x] algod + indexer; round cursor; basic app call & ASA transfer decode.
   - AC: Sample app call triggers alert; rewind works across rounds.
 - Phase F — Engine & Predicates (tiny)
-  - [ ] Predicates: `== != > < in contains`; numeric helpers (wei, microAlgos). 
-  - [ ] Simple token-bucket rate limit per rule.
+  - [x] Predicates: `== != > < in contains`; numeric helpers (wei, microAlgos). 
+  - [x] Simple token-bucket rate limit per rule.
   - AC: Table-driven tests for predicate eval; rate-limit respected.
 - Phase G — Sinks (minimal)
   - [x] Slack webhook; generic HTTP webhook; Teams webhook (shared impl).

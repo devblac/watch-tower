@@ -39,9 +39,10 @@ type Event struct {
 }
 
 type ruleExec struct {
-	rule  config.Rule
-	preds []Predicate
-	ttl   time.Duration
+	rule      config.Rule
+	preds     []Predicate
+	ttl       time.Duration
+	rateLimit *TokenBucket
 }
 
 // NewRunner builds a runner for the provided config and scanners.
@@ -58,7 +59,11 @@ func NewRunner(store *storage.Store, cfg *config.Config, evmScanners map[string]
 				ttl = d
 			}
 		}
-		rules[r.ID] = ruleExec{rule: r, preds: preds, ttl: ttl}
+		var rateLimit *TokenBucket
+		if r.RateLimit != nil {
+			rateLimit = NewTokenBucket(r.RateLimit.Capacity, r.RateLimit.Rate)
+		}
+		rules[r.ID] = ruleExec{rule: r, preds: preds, ttl: ttl, rateLimit: rateLimit}
 	}
 
 	return &Runner{
@@ -165,9 +170,17 @@ func (r *Runner) handleEvents(ctx context.Context, events []Event) error {
 			// No side effects in dry-run: skip dedupe and sends.
 			continue
 		}
+		now := r.nowFunc()
+
+		// Check rate limit if configured
+		if exec.rateLimit != nil {
+			if !exec.rateLimit.Allow(now) {
+				continue // Rate limited, skip this alert
+			}
+		}
+
 		if exec.rule.Dedupe != nil {
 			key := buildDedupeKey(exec.rule.Dedupe.Key, ev)
-			now := r.nowFunc()
 			isDup, err := r.store.IsDuplicate(ctx, key, now)
 			if err != nil {
 				return err

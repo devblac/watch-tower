@@ -101,7 +101,7 @@ func compile(expr string) (Predicate, error) {
 	field := strings.TrimSpace(parts[0])
 	rhsRaw := strings.TrimSpace(parts[1])
 
-	numRHS, rhsIsNum := parseNumber(rhsRaw)
+	numRHS, rhsIsNum := evaluateNumber(rhsRaw)
 
 	return func(args map[string]any) (bool, error) {
 		val, ok := args[field]
@@ -143,10 +143,54 @@ func compile(expr string) (Predicate, error) {
 	}, nil
 }
 
-func parseNumber(s string) (float64, bool) {
+// evaluateNumber evaluates a numeric expression, supporting:
+// - Simple numbers: "100", "1e6", "1_000_000"
+// - Helper functions: "wei(1e18)", "microAlgos(1e6)"
+// - Multiplication: "1_000_000 * 1e6"
+func evaluateNumber(s string) (float64, bool) {
+	s = strings.TrimSpace(s)
 	s = strings.ReplaceAll(s, "_", "")
+
+	// Handle multiplication
+	if strings.Contains(s, "*") {
+		parts := strings.Split(s, "*")
+		if len(parts) != 2 {
+			return 0, false
+		}
+		a, ok1 := evaluateNumber(strings.TrimSpace(parts[0]))
+		b, ok2 := evaluateNumber(strings.TrimSpace(parts[1]))
+		if !ok1 || !ok2 {
+			return 0, false
+		}
+		return a * b, true
+	}
+
+	// Check for helper functions: wei(value) or microAlgos(value)
+	if strings.HasPrefix(s, "wei(") && strings.HasSuffix(s, ")") {
+		inner := strings.TrimSpace(s[4 : len(s)-1])
+		v, ok := evaluateNumber(inner)
+		if !ok {
+			return 0, false
+		}
+		return v, true // wei is already the base unit, no conversion needed
+	}
+	if strings.HasPrefix(s, "microAlgos(") && strings.HasSuffix(s, ")") {
+		inner := strings.TrimSpace(s[11 : len(s)-1])
+		v, ok := evaluateNumber(inner)
+		if !ok {
+			return 0, false
+		}
+		return v, true // microAlgos is already the base unit, no conversion needed
+	}
+
+	// Parse as a simple number
 	v, err := strconv.ParseFloat(s, 64)
 	return v, err == nil
+}
+
+// parseNumber is a simple wrapper for backward compatibility.
+func parseNumber(s string) (float64, bool) {
+	return evaluateNumber(s)
 }
 
 func toNumber(v any) (float64, bool) {
