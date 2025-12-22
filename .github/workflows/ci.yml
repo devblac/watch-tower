@@ -29,8 +29,24 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
 
       - name: Build
         run: go build ./cmd/watch-tower
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}-${{ matrix.go }}
+          path: coverage.out
+          if-no-files-found: ignore
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.out
+          flags: unittests
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
