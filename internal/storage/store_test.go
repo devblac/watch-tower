@@ -89,3 +89,17 @@ func TestExactlyOnceAlert(t *testing.T) {
 		t.Fatalf("expected duplicate alert insert to fail")
 	}
 }
+
+func TestPing(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	if err := store.Ping(ctx); err != nil {
+		t.Fatalf("ping failed: %v", err)
+	}
+
+	store.Close()
+	if err := store.Ping(ctx); err == nil {
+		t.Fatalf("expected ping to fail after close")
+	}
+}

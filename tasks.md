@@ -119,8 +119,8 @@ sinks:
   - [x] `--dry-run` writes alerts only; no network sends.
   - AC: 5k-block replay yields expected count; zero sink calls in dry-run; deterministic reruns.
 - Phase I — Ops (only needed)
-  - [ ] `/healthz` HTTP (db, RPCs); optional `/metrics` Prometheus counters.
-  - [ ] Structured logs; secrets redacted; minimal log levels.
+  - [x] `/healthz` HTTP (db, RPCs); optional `/metrics` Prometheus counters.
+  - [x] Structured logs; secrets redacted; minimal log levels.
   - AC: Health reflects failures correctly; secrets never logged in tests.
 - Phase J — Packaging
   - [ ] goreleaser for win/linux/darwin (amd64/arm64); checksums; SBOM.

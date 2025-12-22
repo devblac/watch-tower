@@ -40,6 +40,14 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+// Ping checks database connectivity.
+func (s *Store) Ping(ctx context.Context) error {
+	if s == nil || s.db == nil {
+		return errors.New("store not initialized")
+	}
+	return s.db.PingContext(ctx)
+}
+
 func configure(db *sql.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

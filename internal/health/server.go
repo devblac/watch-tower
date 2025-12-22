@@ -53,3 +53,7 @@ func Serve(addr string, checker Checker) *http.Server {
 	return srv
 }
 
+// Shutdown gracefully shuts down the health server.
+func Shutdown(ctx context.Context, srv *http.Server) error {
+	return srv.Shutdown(ctx)
+}
