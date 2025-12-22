@@ -1,0 +1,28 @@
+version: 1
+global:
+  db_path: "./watch_tower.db"
+  confirmations:
+    algorand: 10
+sources:
+  - id: algorand_mainnet
+    type: algorand
+    algod_url: ${ALGOD_URL}
+    indexer_url: ${ALGO_INDEXER_URL}
+    start_round: "latest-10000"
+rules:
+  - id: app_call_monitor
+    source: algorand_mainnet
+    match:
+      type: app_call
+      app_id: 12345678  # Change this to your app ID
+      where:
+        - "sender in env(ALLOWED_SENDERS)"  # Optional: filter by sender
+    sinks: ["slack"]
+    dedupe:
+      key: "txhash"
+      ttl: "24h"
+sinks:
+  - id: slack
+    type: slack
+    webhook_url: ${SLACK_WEBHOOK_URL}
+    template: "📱 Algorand App Call\n\nApp ID: {{app_id}}\nSender: {{sender}}\nTx: {{txhash}}\nRound: {{height}}"

@@ -1,0 +1,29 @@
+version: 1
+global:
+  db_path: "./watch_tower.db"
+  confirmations:
+    evm: 12
+sources:
+  - id: ethereum_mainnet
+    type: evm
+    rpc_url: ${EVM_RPC_URL}
+    start_block: "latest-5000"
+    abi_dirs: ["./abis"]
+rules:
+  - id: usdc_whale
+    source: ethereum_mainnet
+    match:
+      type: log
+      contract: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+      event: "Transfer(address,address,uint256)"
+      where:
+        - "value >= 1_000_000 * 1e6"
+    sinks: ["slack"]
+    dedupe:
+      key: "txhash:logIndex"
+      ttl: "24h"
+sinks:
+  - id: slack
+    type: slack
+    webhook_url: ${SLACK_WEBHOOK_URL}
+    template: "🐋 Large USDC Transfer\n\nAmount: {{value}} USDC\nFrom: {{from}}\nTo: {{to}}\nTx: {{txhash}}\nBlock: {{height}}"

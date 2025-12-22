@@ -127,8 +127,8 @@ sinks:
   - [ ] Dockerfile (distroless, small image).
   - AC: v0.1.0 GitHub Release artifacts publish; images run with sample config.
 - Phase K — Docs & Examples
-  - [ ] README (quickstart <15 min), config reference, reorg model, replay usage, CI example.
-  - [ ] `examples/evm_usdc_whale`, `examples/algo_app_watch` with scripts.
+  - [x] README (quickstart <15 min), config reference, reorg model, replay usage, CI example.
+  - [x] `examples/evm_usdc_whale`, `examples/algo_app_watch` with scripts.
   - AC: Fresh clone → alert on testnet in <15 minutes via documented steps.
 
 ## 6) Data Types (sketch)
