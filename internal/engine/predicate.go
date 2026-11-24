@@ -2,7 +2,8 @@ package engine
 
 import (
 	"fmt"
-	"strconv"
+	"math/big"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -43,7 +44,7 @@ func compile(expr string) (Predicate, error) {
 		rawList := strings.Split(parts[1], ",")
 		values := make(map[string]struct{}, len(rawList))
 		for _, v := range rawList {
-			v = strings.TrimSpace(v)
+			v = normalizeString(unquote(strings.TrimSpace(v)))
 			if v == "" {
 				continue
 			}
@@ -54,8 +55,7 @@ func compile(expr string) (Predicate, error) {
 			if !ok {
 				return false, nil
 			}
-			s := fmt.Sprint(arg)
-			_, hit := values[s]
+			_, hit := values[normalizeString(fmt.Sprint(arg))]
 			return hit, nil
 		}, nil
 	}
@@ -66,7 +66,7 @@ func compile(expr string) (Predicate, error) {
 			return nil, fmt.Errorf("invalid contains expression: %s", expr)
 		}
 		field := strings.TrimSpace(parts[0])
-		needle := strings.TrimSpace(parts[1])
+		needle := unquote(strings.TrimSpace(parts[1]))
 		return func(args map[string]any) (bool, error) {
 			val, ok := args[field]
 			if !ok {
@@ -102,6 +102,7 @@ func compile(expr string) (Predicate, error) {
 	rhsRaw := strings.TrimSpace(parts[1])
 
 	numRHS, rhsIsNum := evaluateNumber(rhsRaw)
+	strRHS := normalizeString(unquote(rhsRaw))
 
 	return func(args map[string]any) (bool, error) {
 		val, ok := args[field]
@@ -114,102 +115,135 @@ func compile(expr string) (Predicate, error) {
 			if !ok {
 				return false, nil
 			}
+			c := lhs.Cmp(numRHS)
 			switch op {
 			case "==":
-				return lhs == numRHS, nil
+				return c == 0, nil
 			case "!=":
-				return lhs != numRHS, nil
+				return c != 0, nil
 			case ">":
-				return lhs > numRHS, nil
+				return c > 0, nil
 			case "<":
-				return lhs < numRHS, nil
+				return c < 0, nil
 			case ">=":
-				return lhs >= numRHS, nil
+				return c >= 0, nil
 			case "<=":
-				return lhs <= numRHS, nil
+				return c <= 0, nil
 			}
 		}
 
 		// String comparisons
-		lhs := fmt.Sprint(val)
+		lhs := normalizeString(fmt.Sprint(val))
 		switch op {
 		case "==":
-			return lhs == rhsRaw, nil
+			return lhs == strRHS, nil
 		case "!=":
-			return lhs != rhsRaw, nil
+			return lhs != strRHS, nil
 		default:
 			return false, nil
 		}
 	}, nil
 }
 
-// evaluateNumber evaluates a numeric expression, supporting:
-// - Simple numbers: "100", "1e6", "1_000_000"
+// decimalRe matches plain decimal literals (optionally with an exponent).
+// Hex literals such as addresses are deliberately not numbers.
+var decimalRe = regexp.MustCompile(`^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$`)
+
+// evaluateNumber evaluates a numeric expression exactly, supporting:
+// - Simple numbers: "100", "1e6", "1_000_000", "0.5"
 // - Helper functions: "wei(1e18)", "microAlgos(1e6)"
 // - Multiplication: "1_000_000 * 1e6"
-func evaluateNumber(s string) (float64, bool) {
+func evaluateNumber(s string) (*big.Rat, bool) {
 	s = strings.TrimSpace(s)
 	s = strings.ReplaceAll(s, "_", "")
 
 	// Handle multiplication
 	if strings.Contains(s, "*") {
-		parts := strings.Split(s, "*")
-		if len(parts) != 2 {
-			return 0, false
+		result := big.NewRat(1, 1)
+		for _, part := range strings.Split(s, "*") {
+			v, ok := evaluateNumber(part)
+			if !ok {
+				return nil, false
+			}
+			result.Mul(result, v)
 		}
-		a, ok1 := evaluateNumber(strings.TrimSpace(parts[0]))
-		b, ok2 := evaluateNumber(strings.TrimSpace(parts[1]))
-		if !ok1 || !ok2 {
-			return 0, false
-		}
-		return a * b, true
+		return result, true
 	}
 
-	// Check for helper functions: wei(value) or microAlgos(value)
-	if strings.HasPrefix(s, "wei(") && strings.HasSuffix(s, ")") {
-		inner := strings.TrimSpace(s[4 : len(s)-1])
-		v, ok := evaluateNumber(inner)
-		if !ok {
-			return 0, false
+	// Helper functions: wei(value) and microAlgos(value) are already base units.
+	for _, helper := range []string{"wei(", "microAlgos("} {
+		if strings.HasPrefix(s, helper) && strings.HasSuffix(s, ")") {
+			return evaluateNumber(s[len(helper) : len(s)-1])
 		}
-		return v, true // wei is already the base unit, no conversion needed
-	}
-	if strings.HasPrefix(s, "microAlgos(") && strings.HasSuffix(s, ")") {
-		inner := strings.TrimSpace(s[11 : len(s)-1])
-		v, ok := evaluateNumber(inner)
-		if !ok {
-			return 0, false
-		}
-		return v, true // microAlgos is already the base unit, no conversion needed
 	}
 
-	// Parse as a simple number
-	v, err := strconv.ParseFloat(s, 64)
-	return v, err == nil
+	if !decimalRe.MatchString(s) {
+		return nil, false
+	}
+	v, ok := new(big.Rat).SetString(s)
+	return v, ok
 }
 
-// parseNumber is a simple wrapper for backward compatibility.
-func parseNumber(s string) (float64, bool) {
-	return evaluateNumber(s)
-}
-
-func toNumber(v any) (float64, bool) {
+// toNumber converts a decoded event argument into an exact rational number.
+// EVM uint256/int256 values arrive as *big.Int; Algorand amounts as uint64.
+func toNumber(v any) (*big.Rat, bool) {
 	switch n := v.(type) {
+	case *big.Int:
+		if n == nil {
+			return nil, false
+		}
+		return new(big.Rat).SetInt(n), true
+	case big.Int:
+		return new(big.Rat).SetInt(&n), true
 	case int:
-		return float64(n), true
+		return new(big.Rat).SetInt64(int64(n)), true
+	case int8:
+		return new(big.Rat).SetInt64(int64(n)), true
+	case int16:
+		return new(big.Rat).SetInt64(int64(n)), true
+	case int32:
+		return new(big.Rat).SetInt64(int64(n)), true
 	case int64:
-		return float64(n), true
+		return new(big.Rat).SetInt64(n), true
+	case uint:
+		return new(big.Rat).SetUint64(uint64(n)), true
+	case uint8:
+		return new(big.Rat).SetUint64(uint64(n)), true
+	case uint16:
+		return new(big.Rat).SetUint64(uint64(n)), true
+	case uint32:
+		return new(big.Rat).SetUint64(uint64(n)), true
 	case uint64:
-		return float64(n), true
+		return new(big.Rat).SetUint64(n), true
 	case float64:
-		return n, true
+		r := new(big.Rat).SetFloat64(n)
+		return r, r != nil
 	case float32:
-		return float64(n), true
+		r := new(big.Rat).SetFloat64(float64(n))
+		return r, r != nil
 	case string:
-		return parseNumber(n)
+		return evaluateNumber(n)
 	default:
-		return 0, false
+		return nil, false
 	}
+}
+
+// unquote strips one pair of matching surrounding quotes, so that
+// `sender == "0xabc"` compares against 0xabc.
+func unquote(s string) string {
+	if len(s) >= 2 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] == s[0] {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
+// normalizeString lowercases hex strings (addresses, hashes) so that
+// checksummed and lowercase forms compare equal. Other strings are unchanged.
+func normalizeString(s string) string {
+	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
+		return strings.ToLower(s)
+	}
+	return s
 }
 
 // TokenBucket is a simple per-rule rate limiter.
